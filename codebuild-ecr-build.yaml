@@ -1,4 +1,18 @@
+Description: This template creates a build environment on Codebuild that automatically builds a docker image from your Github repo on push and pushes the image to ECR
 
+Parameters:
+
+  GithubUser:
+    Type: String
+
+  GithubRepo:
+    Type: String
+
+  CodeBuildProjectName:
+    Type: String
+
+  ImageRepoName:
+    Type: String
 
 Resources:
   CodeBuildProject:
@@ -18,14 +32,33 @@ Resources:
           - Name: AWS_ACCOUNT_ID
             Value: !Ref AWS::AccountId
           - Name: IMAGE_REPO_NAME
-            Value: !Ref NewTopicsRepo
+            Value: !Ref ImageRepo
           - Name: IMAGE_TAG
             Value: latest
-      Name: New-Topics-Build
+      Name: !Ref CodeBuildProjectName
       ServiceRole: !Ref CodeBuildRole
       Source:
         Type: GITHUB
-        Location: https://github.com/JohnZProd/new-topics.git
+        Location: !Sub https://github.com/${GithubUser}/${GithubRepo}.git
+        BuildSpec: !Sub |
+            version: 0.2
+
+            phases:
+              pre_build:
+                commands:
+                  - echo Logging in to Amazon ECR...
+                  - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+              build:
+                commands:
+                  - echo Build started on `date`
+                  - echo Building the Docker image...          
+                  - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+                  - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG      
+              post_build:
+                commands:
+                  - echo Build completed on `date`
+                  - echo Pushing the Docker image...
+                  - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       Triggers:
         Webhook: True
 
@@ -42,7 +75,7 @@ Resources:
                 - "codebuild.amazonaws.com"
             Action: 
               - "sts:AssumeRole"
-      Description: CodeBuild permissions for new topics
+      Description: !Sub CodeBuild permissions for pushing to ECR repo ${ImageRepoName}
       Policies:
         - PolicyName: Allow-ECR-S3-Access
           PolicyDocument:
@@ -54,9 +87,9 @@ Resources:
                   - "s3:*"
                   - "logs:*"
                 Resource: "*"
-      RoleName: CodeBuildRoleForNewTopics
+      RoleName: !Sub CodeBuildRole-${CodeBuildProjectName}
 
-  NewTopicsRepo:
+  ImageRepo:
     Type: "AWS::ECR::Repository"
     Properties:
-      RepositoryName: saga-new-topics
+      RepositoryName: !Ref ImageRepoName
