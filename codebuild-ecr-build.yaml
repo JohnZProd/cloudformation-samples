@@ -87,7 +87,7 @@ Resources:
                   - "s3:*"
                   - "logs:*"
                 Resource: "*"
-      RoleName: !Sub CodeBuildRole-${CodeBuildProjectName}
+      RoleName: !Sub ${AWS::StackName}-CodeBuildRole-${CodeBuildProjectName}
 
   ImageRepo:
     Type: "AWS::ECR::Repository"
