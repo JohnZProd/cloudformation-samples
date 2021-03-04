@@ -1,0 +1,18 @@
+Parameters:
+  DBIdentifier:
+    Type: String
+  DBUser:
+    Type: String
+  DBPassword:
+    Type: String
+
+Resources:
+  MyDBSmall:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      DBInstanceClass: db.m5.large
+      DBInstanceIdentifier: !Ref DBIdentifier
+      Engine: postgres
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
